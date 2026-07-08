@@ -1,0 +1,146 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "clickhouse", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 20, "lineWidth": 2, "spanNulls": false }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } },
+      "title": "Ingestion Throughput (spans/sec)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "rawSql": "SELECT toStartOfMinute(timestamp) AS time, count() / 60 AS spans_per_sec FROM traceweaver.spans WHERE $__timeFilter(timestamp) GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "clickhouse", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "continuous-GrYlRd" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "title": "Compression Ratio (vs JSON baseline)",
+      "type": "gauge",
+      "targets": [
+        {
+          "rawSql": "SELECT avg(compression_ratio) FROM traceweaver.compression_stats WHERE $__timeFilter(timestamp)",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "clickhouse", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "title": "Anomaly Detection Rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "rawSql": "SELECT toStartOfMinute(timestamp) AS time, countIf(is_anomaly = 1) AS anomalies, count() AS total FROM traceweaver.traces WHERE $__timeFilter(timestamp) GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "clickhouse", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "barAlignment": 0, "drawStyle": "bars", "fillOpacity": 80 }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "title": "Storage per 1M Traces",
+      "type": "timeseries",
+      "targets": [
+        {
+          "rawSql": "SELECT toStartOfHour(timestamp) AS time, sum(compressed_bytes) / 1e6 AS mb_per_million FROM traceweaver.compression_stats WHERE $__timeFilter(timestamp) GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "clickhouse", "uid": "clickhouse" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "id": 5,
+      "title": "Top Anomalous Services",
+      "type": "table",
+      "targets": [
+        {
+          "rawSql": "SELECT service_name, count() AS anomaly_count, avg(duration_us) / 1000 AS avg_latency_ms FROM traceweaver.spans s JOIN traceweaver.traces t ON s.trace_id = t.trace_id WHERE t.is_anomaly = 1 AND $__timeFilter(s.timestamp) GROUP BY service_name ORDER BY anomaly_count DESC LIMIT 10",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "clickhouse", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "continuous-blues" },
+          "custom": { "lineWidth": 2, "spanNulls": true }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "id": 6,
+      "title": "p50/p95/p99 Latency by Service",
+      "type": "timeseries",
+      "targets": [
+        {
+          "rawSql": "SELECT toStartOfMinute(timestamp) AS time, quantile(0.5)(duration_us) / 1000 AS p50, quantile(0.95)(duration_us) / 1000 AS p95, quantile(0.99)(duration_us) / 1000 AS p99 FROM traceweaver.spans WHERE service_name = 'api-gateway' AND $__timeFilter(timestamp) GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "clickhouse", "uid": "clickhouse" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "id": 7,
+      "title": "Template Hit Rate Over Time",
+      "type": "timeseries",
+      "targets": [
+        {
+          "rawSql": "SELECT toStartOfMinute(timestamp) AS time, template_hit_rate * 100 AS hit_rate_pct FROM traceweaver.compression_stats WHERE $__timeFilter(timestamp) GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["traceweaver", "observability", "compression"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "TraceWeaver — Trace Compression & Anomaly Detection",
+  "uid": "traceweaver-main",
+  "version": 1
+}
